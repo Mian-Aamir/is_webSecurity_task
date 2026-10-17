@@ -1,0 +1,177 @@
+PARTNER 2 - SAFE VERSION FILE OWNERSHIP
+
+Responsibilities: Reflected/stored/DOM XSS prevention, CSRF token validation, secure HTML output and DOM rendering, frontend asset integration, and security tests. style.css is a shared styling asset owned by Partner 2; it is not itself a security defense.
+
+DATABASE OMITTED BY OWNER APPROVAL
+safe/database/ is absent and no database export is included. Obtain the existing
+campusconnect_safe database/export separately from the owner before runtime tests.
+Do not use the vulnerable database as a substitute. config.php and TESTING.md still
+refer to the missing SQL file because all application files are exact originals.
+
+PUSH ORDER AND DEPENDENCIES
+Partner 1 pushes first. Partner 2 must pull the latest main BEFORE copying their
+files, unless cloning after Partner 1's push. Each partner makes their own commit.
+Neither package is a standalone application. Partner 1 can lint and review their
+files first; full runtime testing requires both contributions and the database.
+After both pushes, both partners pull and test the combined Safe Version.
+
+POWERSHELL SETUP AND COPYING
+Run on your own computer. Put this ZIP in Downloads, or edit $zipPath below.
+Clone into a NEW directory; the command stops if the destination already exists.
+The example uses the standard MAMP web root. Ensure the parent directory exists.
+Set your own Git name and email (replace the example values before running).
+Run sections in order and stop on any error. Never force-push.
+
+$ErrorActionPreference = 'Stop'
+$repoPath = 'C:\MAMP\htdocs\is_webSecurity_task'
+$zipPath = Join-Path $env:USERPROFILE 'Downloads\Partner_2_XSS_CSRF_Safe.zip'
+$unpackPath = Join-Path $env:TEMP ('campusconnect-partner-2-' + [guid]::NewGuid().ToString('N'))
+if (Test-Path -LiteralPath $repoPath) { throw 'Clone destination already exists. Choose a new folder or use a clean existing clone.' }
+git clone --branch main https://github.com/Mian-Aamir/is_webSecurity_task.git $repoPath
+if ($LASTEXITCODE -ne 0) { throw 'Clone failed' }
+Set-Location -LiteralPath $repoPath
+# For an existing clone instead: enter that clone, ensure you are on main and
+# git status --porcelain is empty, then continue with the pull below.
+if ((git branch --show-current) -ne 'main') { throw 'Use the main branch' }
+if (git status --porcelain) { throw 'Working tree/index must be clean before integration' }
+git pull --ff-only origin main
+if ($LASTEXITCODE -ne 0) { throw 'Pull failed; resolve with the team before copying' }
+git config --local user.name 'YOUR OWN NAME'
+git config --local user.email 'YOUR OWN GIT EMAIL'
+git var GIT_AUTHOR_IDENT
+Expand-Archive -LiteralPath $zipPath -DestinationPath $unpackPath
+$assigned = @(
+    'safe/announcement.php',
+    'safe/check.php',
+    'safe/comment_create.php',
+    'safe/edit_profile.php',
+    'safe/friend_add.php',
+    'safe/post_create.php',
+    'safe/preview.php',
+    'safe/profile.php',
+    'safe/profile_update.php',
+    'safe/search.php',
+    'safe/TESTING.md',
+    'safe/assets/preview.js',
+    'safe/assets/style.css',
+    'safe/test-pages/csrf-safe-retest.html'
+)
+foreach ($relative in $assigned) {
+    $source = Join-Path $unpackPath $relative
+    $destination = Join-Path $repoPath $relative
+    New-Item -ItemType Directory -Path (Split-Path -Parent $destination) -Force | Out-Null
+    Copy-Item -LiteralPath $source -Destination $destination
+    if ((Get-FileHash -LiteralPath $source).Hash -ne (Get-FileHash -LiteralPath $destination).Hash) { throw "Copy mismatch: $relative" }
+}
+
+REVIEW AND SYNTAX TEST BEFORE COMMIT
+Review each assigned file in your editor, including untracked files (git diff alone
+will not show their contents). Do not reformat or regenerate the supplied code.
+
+foreach ($relative in $assigned) {
+    if ($relative.EndsWith('.php')) {
+        & 'C:\MAMP\bin\php\php8.2.14\php.exe' -l (Join-Path $repoPath $relative)
+        if ($LASTEXITCODE -ne 0) { throw "PHP syntax failed: $relative" }
+    }
+}
+git status --short
+
+STAGE ONLY YOUR EXPLICIT FILES, REVIEW, THEN COMMIT AND PUSH
+Do not use git add ., git add -A, git add safe/, or git commit -a.
+Do not copy INSTRUCTIONS.txt into the repository. Keep safe/README.md as supplied
+by the clone. Do not delete it or stage its deletion. Do not stage other files,
+ZIPs, database dumps, backups, node_modules, or formatting ignore files.
+
+git add -- "safe/announcement.php" "safe/check.php" "safe/comment_create.php" "safe/edit_profile.php" "safe/friend_add.php" "safe/post_create.php" "safe/preview.php" "safe/profile.php" "safe/profile_update.php" "safe/search.php" "safe/TESTING.md" "safe/assets/preview.js" "safe/assets/style.css" "safe/test-pages/csrf-safe-retest.html"
+if ($LASTEXITCODE -ne 0) { throw 'Staging failed' }
+$staged = @(git diff --cached --name-only)
+if ($staged | Where-Object { $_ -notin $assigned }) { throw 'Unassigned files are staged; stop and inspect before committing' }
+if (git diff --cached --name-only --diff-filter=D) { throw 'Deletion staged; stop and inspect' }
+git diff --cached --check
+if ($LASTEXITCODE -ne 0) { throw 'Fix review issues before committing' }
+git diff --cached --stat
+git diff --cached
+# Read the diff above before running the following commands.
+git commit -m "Integrate and verify XSS and CSRF protections with frontend assets"
+if ($LASTEXITCODE -ne 0) { throw 'Commit failed' }
+git push origin main
+if ($LASTEXITCODE -ne 0) { throw 'Push failed; coordinate with the team, do not force-push' }
+
+Push assumes your GitHub account has write access and main permits direct pushes.
+If protected, follow the repository's PR process rather than bypassing it.
+Do not squash the two partners' contributions together.
+
+AFTER BOTH PUSHES: COMBINED TESTING
+Run in a clean clone after Partner 2's successful push:
+
+git pull --ff-only origin main
+git log -2 --format='%h %an <%ae> %s'
+
+Start MAMP Apache/MySQL. Provide the original campusconnect_safe schema and test
+records separately; the ZIPs cannot bootstrap the missing database. Check local
+connection compatibility with safe/config.php (localhost:3306, database
+campusconnect_safe). Avoid committing machine-specific credential changes.
+Open http://localhost/is_webSecurity_task/safe/ (adjust if your Apache port differs).
+Read safe/TESTING.md from the combined checkout; its SQL-import step needs the
+separately provided export. Use fictional accounts and capture test evidence.
+
+Partner 1 tests:
+- Login bypass payload admin@example.test' # with a wrong password must fail.
+- Lookup inputs 1 AND 1=1 and 1 AND 1=2 must both be invalid IDs.
+- Retest the assignment's directory UNION payload: no injected rows or DB metadata.
+- As admin, employee code EMP-001' OR '1'='1 must return 422 and change no salary.
+- A student visiting payroll receives 403; a guest is redirected to login.
+- Normal login/logout/register/lookup work; a valid admin salary change affects
+  only the intended employee. Compare safe DB records before and after tests.
+
+Partner 2 tests:
+- Submit the prior reflected and stored XSS payloads in search/profile Bio:
+  display literal text, no script execution or unintended changes.
+- Use the prior preview URL fragment payload: textContent renders it as text.
+- Missing/invalid CSRF token requests fail without changing database records.
+- Valid profile edits, friend additions, posts, comments and logout still work.
+- Check CSS styling and preview JavaScript load correctly in the combined app.
+- For the cross-origin CSRF test, run in a second PowerShell window:
+
+Set-Location 'C:\MAMP\htdocs\is_webSecurity_task\safe\test-pages'
+py -m http.server 8001 --bind 127.0.0.1
+
+While signed in to Safe Version in the browser, open
+http://localhost:8001/csrf-safe-retest.html and submit using a disposable account.
+Expected: 403 Invalid CSRF token and unchanged profile. The supplied test page
+has a hard-coded target at localhost:80 and an outdated sentence saying the app
+uses no tokens. That sentence is inaccurate for Safe Version; the submitted attack
+form omits a token. This source file was preserved exactly as requested.
+
+VERIFIED PACKAGE MANIFEST (15 files; 10 PHP files)
+INSTRUCTIONS.txt
+safe/TESTING.md
+safe/announcement.php
+safe/assets/preview.js
+safe/assets/style.css
+safe/check.php
+safe/comment_create.php
+safe/edit_profile.php
+safe/friend_add.php
+safe/post_create.php
+safe/preview.php
+safe/profile.php
+safe/profile_update.php
+safe/search.php
+safe/test-pages/csrf-safe-retest.html
+
+SOURCE SHA-256 HASHES (INSTRUCTIONS.txt is new packaging documentation)
+e09fc3fcf74c30adfbd784f7a752b91f670019a747371c8a76805b92bd060307  safe/TESTING.md
+4b98c7f196599205a642fa0bef1bdfab8beb8486e720daca424c715a87c5cae2  safe/announcement.php
+ca04360c98d34ca5810766984a75ef1a09c549b847ae603d18619091cd39a0dc  safe/assets/preview.js
+538b94ca393659b4de18de078274625e91648b68e28317e78dcfdd8f498985e8  safe/assets/style.css
+bc2da7816136def4af4b6d11a3a5ee0608853c59d9e01350bc6fce2aff796a5a  safe/check.php
+896932e1e6a2179ec8e2913569220dbfa1aa9e2f6aea3b691db374188c25b61d  safe/comment_create.php
+1f50a4032b799a4166a32ed86bdbdde252d14f1d621dc89bbe35a1339fb8354b  safe/edit_profile.php
+fb5101778060625e50146dbe8e2f54dbbdca3fc1bf684423917ebf4adbb56337  safe/friend_add.php
+b26bba2fac19da309a847325ee3fb649faa44e266d683c09b314292332995c2b  safe/post_create.php
+913ff3dd9b266ac6baf5dfe27a671aa5ee997f38fd2bedb68b54fab4f0e17d8f  safe/preview.php
+6df59089fd50787caf20748800006e1150083ff6d67d99dc9ce00c1cd45eed23  safe/profile.php
+d9272f1808fa9e645ea040a4a6de90474e7821726939328a9ddc8ae5a63f8173  safe/profile_update.php
+7e8111a1442d1732d7a7c3f54cb3d32ce619ce1e885c3d5bcbffe76ed8fb8eba  safe/search.php
+c272c255704c9c8eb87ef736c7adb4fa0cddd78298f8a8a67c1f4eccf7f527de  safe/test-pages/csrf-safe-retest.html
